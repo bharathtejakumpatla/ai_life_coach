@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { RequireAuth } from './components/RequireAuth'
 import { StorytellingLayout } from './components/StorytellingLayout'
 
 const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })))
@@ -22,8 +23,10 @@ function App() {
             <Route index element={<TodayPage />} />
             <Route path="record" element={<RecordPage />} />
             <Route path="results/:id" element={<ResultsPage />} />
-            <Route path="history" element={<HistoryPage />} />
-            <Route path="history/:id" element={<SessionDetailPage />} />
+            <Route element={<RequireAuth />}>
+              <Route path="history" element={<HistoryPage />} />
+              <Route path="history/:id" element={<SessionDetailPage />} />
+            </Route>
           </Route>
         </Route>
       </Routes>
