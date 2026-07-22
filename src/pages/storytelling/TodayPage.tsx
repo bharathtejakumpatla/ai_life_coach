@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useAppStore } from '../store/AppStore'
+import { useAppStore } from '../../store/AppStore'
 
 const CATEGORY_LABEL: Record<string, string> = {
   'personal anecdote': 'Personal anecdote',
@@ -9,7 +9,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   humorous: 'Humorous',
 }
 
-export function HomePage() {
+export function TodayPage() {
   const { state, todayTopic, todaySession } = useAppStore()
   const mostRecent = state.sessions[0]
   const showWarmup = mostRecent && mostRecent.date !== new Date().toISOString().slice(0, 10) && !todaySession
@@ -38,13 +38,13 @@ export function HomePage() {
           <p className="mt-1 text-lg font-medium">Score: {todaySession.overallScore} / 100</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
-              to={`/results/${todaySession.id}`}
+              to={`/storytelling/results/${todaySession.id}`}
               className="inline-flex items-center rounded-full bg-brand-500 px-4 py-2 text-sm font-medium text-white"
             >
               View today's feedback
             </Link>
             <Link
-              to="/record"
+              to="/storytelling/record"
               className="inline-flex items-center rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-200"
             >
               Retry today's recording
@@ -72,7 +72,7 @@ export function HomePage() {
             <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Constraint: {todayTopic.constraint}</p>
           )}
           <Link
-            to="/record"
+            to="/storytelling/record"
             className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-transform active:scale-95"
           >
             <span className="h-2.5 w-2.5 rounded-full bg-white" />
@@ -83,7 +83,7 @@ export function HomePage() {
 
       <p className="text-center text-xs text-neutral-400">
         {state.sessions.length} session{state.sessions.length === 1 ? '' : 's'} logged ·{' '}
-        <Link to="/history" className="underline underline-offset-2">
+        <Link to="/storytelling/history" className="underline underline-offset-2">
           view history
         </Link>
       </p>

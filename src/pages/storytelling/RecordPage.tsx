@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAppStore } from '../store/AppStore'
-import { evaluateLiveSession, generateSession } from '../lib/evaluation'
-import { createLiveTranscriber, isLiveTranscriptionSupported, type LiveTranscriber } from '../lib/liveTranscription'
-import type { TranscriptToken } from '../types'
+import { useAppStore } from '../../store/AppStore'
+import { evaluateLiveSession, generateSession } from '../../lib/evaluation'
+import { createLiveTranscriber, isLiveTranscriptionSupported, type LiveTranscriber } from '../../lib/liveTranscription'
+import type { TranscriptToken } from '../../types'
 
 type Phase = 'idle' | 'recording' | 'recorded' | 'evaluating' | 'error'
 
@@ -50,10 +50,14 @@ export function RecordPage() {
   const diagRef = useRef<{ lastError: string | null; restartCount: number }>({ lastError: null, restartCount: 0 })
   const intervalRef = useRef<number | null>(null)
   const startRef = useRef<number>(0)
+  const hardStopTimerRef = useRef<number | null>(null)
+  const stopRef = useRef<() => void>(() => {})
+  const stoppingRef = useRef(false)
 
   useEffect(() => {
     return () => {
       if (intervalRef.current) window.clearInterval(intervalRef.current)
+      if (hardStopTimerRef.current) window.clearTimeout(hardStopTimerRef.current)
       streamRef.current?.getTracks().forEach((t) => t.stop())
       if (audioUrl) URL.revokeObjectURL(audioUrl)
     }
@@ -74,6 +78,7 @@ export function RecordPage() {
 
   const startRecording = async () => {
     setErrorMessage(null)
+    stoppingRef.current = false
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -105,6 +110,7 @@ export function RecordPage() {
       setSimulated(false)
       setElapsed(0)
       startTimer()
+      hardStopTimerRef.current = window.setTimeout(() => stopRef.current(), MAX_TARGET * 1000)
       setPhase('recording')
     } catch {
       setErrorMessage('Microphone access was blocked or unavailable.')
@@ -114,6 +120,7 @@ export function RecordPage() {
 
   const startSimulatedRecording = () => {
     setErrorMessage(null)
+    stoppingRef.current = false
     setSimulated(true)
     setAudioUrl(null)
     audioBlobRef.current = null
@@ -123,11 +130,18 @@ export function RecordPage() {
     setInterimCaption('')
     setElapsed(0)
     startTimer()
+    hardStopTimerRef.current = window.setTimeout(() => stopRef.current(), MAX_TARGET * 1000)
     setPhase('recording')
   }
 
   const stop = async () => {
+    if (stoppingRef.current) return
+    stoppingRef.current = true
     stopTimer()
+    if (hardStopTimerRef.current) {
+      window.clearTimeout(hardStopTimerRef.current)
+      hardStopTimerRef.current = null
+    }
     if (simulated) {
       setPhase('recorded')
       return
@@ -142,8 +156,10 @@ export function RecordPage() {
     setInterimCaption('')
     setPhase('recorded')
   }
+  stopRef.current = stop
 
   const reRecord = () => {
+    stoppingRef.current = false
     if (audioUrl) URL.revokeObjectURL(audioUrl)
     setAudioUrl(null)
     audioBlobRef.current = null
@@ -204,7 +220,7 @@ export function RecordPage() {
             qualityRoll: Math.random(),
           })
       addSession({ ...session, audioRef: session.audioRef ?? audioRef, transcriptionDebug: { reason, lastError, restartCount } })
-      navigate(`/results/${id}`)
+      navigate(`/storytelling/results/${id}`)
     }, 1200)
   }
 
@@ -229,8 +245,8 @@ export function RecordPage() {
             {phase === 'recording' || phase === 'recorded'
               ? inTargetRange
                 ? 'Nice — in the 60–120s target range'
-                : 'Aim for 60–120 seconds (no hard cutoff)'
-              : 'Aim for 60–120 seconds'}
+                : 'Aim for 60–120 seconds (auto-stops at 2:00)'
+              : 'Aim for 60–120 seconds — recording stops automatically at 2:00'}
           </p>
           {phase === 'idle' && !simulated && (
             <p className="mt-1 text-[11px] text-neutral-400">

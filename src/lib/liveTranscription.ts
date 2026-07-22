@@ -110,55 +110,74 @@ export function createLiveTranscriber(onInterim?: (text: string) => void): LiveT
     return tokens
   }
 
+  // Builds a fresh recognizer instance and wires up its handlers. Chrome's cloud-backed
+  // recognizer disconnects a continuous session on its own after roughly a minute even with
+  // no errors; restarting by calling .start() again on that *same*, already-ended instance is
+  // unreliable (silent no-ops or InvalidStateError), so every (re)start gets a brand-new
+  // instance instead.
+  function setup(): SpeechRecognitionLike {
+    const instance = new Ctor!()
+    instance.continuous = true
+    instance.interimResults = true
+    instance.lang = 'en-US'
+    instance.onresult = (event: any) => {
+      let interim = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i]
+        const text = result[0].transcript as string
+        if (result.isFinal) {
+          const firedAt = (performance.now() - startedAt) / 1000
+          segments.push({ words: text.trim().split(/\s+/), firedAt })
+          debugLog(`[liveTranscription] final segment @ ${firedAt.toFixed(2)}s:`, JSON.stringify(text.trim()))
+        } else {
+          interim += text
+        }
+      }
+      if (interim) onInterim?.(interim.trim())
+    }
+    instance.onend = () => {
+      if (!stopped) {
+        restartCount++
+        debugLog(`[liveTranscription] recognition ended unexpectedly (lastError: ${lastError ?? 'none'}) — restarting (#${restartCount})`)
+        // A short delay avoids racing this instance's teardown.
+        restartTimer = window.setTimeout(() => {
+          if (stopped) return
+          try {
+            recognition = setup()
+            recognition.start()
+          } catch (e) {
+            debugLog('[liveTranscription] restart failed, retrying:', e)
+            // Even a fresh instance can throw if the previous one hasn't fully torn down yet
+            // (e.g. mic still releasing) — retry once more rather than giving up silently.
+            restartTimer = window.setTimeout(() => {
+              if (stopped) return
+              try {
+                recognition = setup()
+                recognition.start()
+              } catch (e2) {
+                debugLog('[liveTranscription] second restart attempt failed, giving up:', e2)
+              }
+            }, 500)
+          }
+        }, 300)
+        return
+      }
+      const result = buildResult()
+      debugLog('[liveTranscription] stopped. raw text:', JSON.stringify(result.rawText), '· tokens:', result.tokens.length, '· restarts:', restartCount, '· lastError:', lastError)
+      resolveStop?.(result)
+    }
+    instance.onerror = (event: any) => {
+      lastError = event?.error ?? 'unknown'
+      debugLog('[liveTranscription] recognition error:', lastError)
+    }
+    return instance
+  }
+
   return {
     start() {
       if (!Ctor) return
       startedAt = performance.now()
-      recognition = new Ctor()
-      recognition.continuous = true
-      recognition.interimResults = true
-      recognition.lang = 'en-US'
-      recognition.onresult = (event: any) => {
-        let interim = ''
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i]
-          const text = result[0].transcript as string
-          if (result.isFinal) {
-            const firedAt = (performance.now() - startedAt) / 1000
-            segments.push({ words: text.trim().split(/\s+/), firedAt })
-            debugLog(`[liveTranscription] final segment @ ${firedAt.toFixed(2)}s:`, JSON.stringify(text.trim()))
-          } else {
-            interim += text
-          }
-        }
-        if (interim) onInterim?.(interim.trim())
-      }
-      recognition.onend = () => {
-        if (!stopped) {
-          // Chrome ends recognition on a silence timeout (e.g. "no-speech") even in continuous
-          // mode. Restarting immediately inside this handler races the previous instance's
-          // teardown and throws InvalidStateError, which silently kills transcription for the
-          // rest of the take — so restart on a short delay instead, and log every restart.
-          restartCount++
-          debugLog(`[liveTranscription] recognition ended unexpectedly (lastError: ${lastError ?? 'none'}) — restarting (#${restartCount})`)
-          restartTimer = window.setTimeout(() => {
-            if (stopped) return
-            try {
-              recognition?.start()
-            } catch (e) {
-              debugLog('[liveTranscription] restart failed:', e)
-            }
-          }, 300)
-          return
-        }
-        const result = buildResult()
-        debugLog('[liveTranscription] stopped. raw text:', JSON.stringify(result.rawText), '· tokens:', result.tokens.length, '· restarts:', restartCount, '· lastError:', lastError)
-        resolveStop?.(result)
-      }
-      recognition.onerror = (event: any) => {
-        lastError = event?.error ?? 'unknown'
-        debugLog('[liveTranscription] recognition error:', lastError)
-      }
+      recognition = setup()
       try {
         recognition.start()
         debugLog('[liveTranscription] started (supported: true)')

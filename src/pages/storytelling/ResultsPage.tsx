@@ -1,13 +1,13 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { useAppStore } from '../store/AppStore'
-import { SessionReport } from '../components/SessionReport'
+import { useAppStore } from '../../store/AppStore'
+import { SessionReport } from '../../components/SessionReport'
 
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>()
   const { getSession } = useAppStore()
   const session = id ? getSession(id) : undefined
 
-  if (!session) return <Navigate to="/" replace />
+  if (!session) return <Navigate to="/storytelling" replace />
 
   return (
     <div className="space-y-6">
@@ -26,10 +26,10 @@ export function ResultsPage() {
       <SessionReport session={session} />
 
       <div className="flex justify-center gap-3 pt-2">
-        <Link to="/" className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium dark:border-neutral-700">
+        <Link to="/storytelling" className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium dark:border-neutral-700">
           Back to today
         </Link>
-        <Link to="/history" className="rounded-full bg-brand-500 px-4 py-2 text-sm font-medium text-white">
+        <Link to="/storytelling/history" className="rounded-full bg-brand-500 px-4 py-2 text-sm font-medium text-white">
           View history
         </Link>
       </div>

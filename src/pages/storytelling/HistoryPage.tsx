@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { useAppStore } from '../store/AppStore'
-import { RecurringIssueCallout } from '../components/RecurringIssueCallout'
-import { TrendChart } from '../components/TrendChart'
-import { scoreTier } from '../lib/metricColors'
+import { useAppStore } from '../../store/AppStore'
+import { RecurringIssueCallout } from '../../components/RecurringIssueCallout'
+import { TrendChart } from '../../components/TrendChart'
+import { scoreTier } from '../../lib/metricColors'
 
 const TIER_CLASS: Record<ReturnType<typeof scoreTier>, string> = {
   good: 'bg-good-soft text-good',
@@ -42,7 +42,7 @@ export function HistoryPage() {
         {sessionsDesc.map((session) => (
           <Link
             key={session.id}
-            to={`/history/${session.id}`}
+            to={`/storytelling/history/${session.id}`}
             className="flex items-center justify-between gap-3 border-b border-neutral-200 bg-white px-4 py-3 last:border-b-0 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800/60"
           >
             <div className="min-w-0">

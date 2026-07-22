@@ -20,8 +20,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => loadState())
 
   const todayTopic = useMemo(
-    () => getTopicForDate(todayISO(), state.difficultyLevel),
-    [state.difficultyLevel],
+    () =>
+      getTopicForDate(
+        todayISO(),
+        state.difficultyLevel,
+        state.sessions.filter((s) => s.date !== todayISO()).map((s) => s.topic.id),
+      ),
+    [state.difficultyLevel, state.sessions],
   )
 
   const todaySession = state.sessions.find((s) => s.date === todayISO())
